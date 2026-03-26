@@ -1,0 +1,50 @@
+[project]
+name = "guided-fusion"
+version = "0.1.0"
+description = "Guided Image Restoration: LQ RGB + HQ Grayscale → HQ Color"
+requires-python = ">=3.10"
+
+dependencies = [
+    "torch==2.1.0+cu121",
+    "torchvision==0.16.0+cu121",
+    "numpy>=1.26.0",
+    "opencv-python>=4.9.0",
+    "Pillow>=10.2.0",
+    "tqdm>=4.66.0",
+    "matplotlib>=3.8.0",
+    "scikit-image>=0.22.0",
+    "tensorboard>=2.16.0",
+    "einops>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+    "pytest>=8.1.0",
+]
+
+[project.scripts]
+gf-download  = "guided_fusion.download:main"
+gf-train     = "guided_fusion.train:main"
+gf-infer     = "guided_fusion.infer:main"
+gf-demo      = "guided_fusion.demo:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.uv.sources]
+torch = [
+  { url = "https://download.pytorch.org/whl/cu121/torch-2.1.0%2Bcu121-cp311-cp311-win_amd64.whl" }
+]
+torchvision = [
+  { url = "https://download.pytorch.org/whl/cu121/torchvision-0.16.0%2Bcu121-cp311-cp311-win_amd64.whl" }
+]

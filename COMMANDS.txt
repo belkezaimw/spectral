@@ -1,0 +1,254 @@
+================================================================
+  GUIDED FUSION NET — COMPLETE COMMAND REFERENCE
+  LQ RGB + HQ Grayscale → HQ Color Image
+================================================================
+
+================================================================
+  0. ONE-TIME SETUP (do this once on a new machine)
+================================================================
+
+-- Install uv (Windows) --
+winget install --id=astral-sh.uv
+
+-- OR install uv (alternative method, run in PowerShell) --
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+-- Navigate to project folder --
+cd E:\guided_fusion
+
+-- Create virtual environment and install all dependencies --
+uv sync
+
+-- Fix NumPy version conflict --
+uv pip install "numpy<2"
+
+-- Verify GPU is working --
+uv run python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
+
+Expected output:
+  2.1.0+cu121
+  True
+  NVIDIA GeForce RTX 4070 Ti SUPER
+
+
+================================================================
+  1. DATASET DOWNLOAD
+================================================================
+
+-- Download DIV2K only (~7 GB, recommended to start) --
+uv run gf-download --dest data/ --dataset div2k
+
+-- Download Flickr2K only (~30 GB, optional, more data = better results) --
+uv run gf-download --dest data/ --dataset flickr2k
+
+-- Download both DIV2K + Flickr2K --
+uv run gf-download --dest data/ --dataset both
+
+After download your folder should look like:
+  E:\guided_fusion\
+    data\
+      DIV2K\
+        DIV2K_train_HR\   <- 800 training images
+        DIV2K_valid_HR\   <- 100 validation images
+      Flickr2K\           <- optional
+        Flickr2K_HR\
+
+
+================================================================
+  2. QUICK DEMO (no dataset needed, tests the pipeline works)
+================================================================
+
+-- Run demo with untrained model (just to test it runs) --
+uv run gf-demo
+
+-- Run demo with a trained checkpoint --
+uv run gf-demo --checkpoint checkpoints/best_model.pth
+
+Results saved to:  demo_output/
+Each image shows:  LQ RGB | HQ Grayscale | Prediction | Ground Truth
+
+
+================================================================
+  3. TRAINING
+================================================================
+
+-- Train with DIV2K only (recommended starting point) --
+uv run gf-train `
+  --train_dirs data/DIV2K/DIV2K_train_HR `
+  --val_dirs   data/DIV2K/DIV2K_valid_HR `
+  --batch_size 16 `
+  --base_ch    64 `
+  --epochs     200 `
+  --amp
+
+-- Train with DIV2K + Flickr2K (more data, better results) --
+uv run gf-train `
+  --train_dirs data/DIV2K/DIV2K_train_HR data/Flickr2K/Flickr2K_HR `
+  --val_dirs   data/DIV2K/DIV2K_valid_HR `
+  --batch_size 16 `
+  --base_ch    64 `
+  --epochs     200 `
+  --amp
+
+-- Resume training from last checkpoint (if it was interrupted) --
+uv run gf-train `
+  --train_dirs data/DIV2K/DIV2K_train_HR `
+  --val_dirs   data/DIV2K/DIV2K_valid_HR `
+  --batch_size 16 `
+  --base_ch    64 `
+  --epochs     200 `
+  --amp `
+  --resume checkpoints/last.pth
+
+-- Train with small model (if low on VRAM or testing) --
+uv run gf-train `
+  --train_dirs data/DIV2K/DIV2K_train_HR `
+  --val_dirs   data/DIV2K/DIV2K_valid_HR `
+  --batch_size 4 `
+  --base_ch    32 `
+  --epochs     100 `
+  --amp
+
+----------------------------------------------------------------
+  BATCH SIZE GUIDE (RTX 4070 Ti Super — 16 GB VRAM)
+----------------------------------------------------------------
+  base_ch=32  batch_size=8   ~3M  params   safe, fast
+  base_ch=32  batch_size=16  ~3M  params   good
+  base_ch=64  batch_size=8   ~11M params   better quality
+  base_ch=64  batch_size=16  ~11M params   best quality (recommended)
+----------------------------------------------------------------
+
+Checkpoints saved to:  checkpoints/
+  last.pth        <- saved every epoch (use for resume)
+  best_model.pth  <- saved when PSNR improves
+
+
+================================================================
+  4. MONITOR TRAINING (open in a second PowerShell window)
+================================================================
+
+-- Start TensorBoard --
+uv run tensorboard --logdir checkpoints/logs
+
+Then open in browser:  http://localhost:6006
+
+Shows live charts of:
+  - Training loss
+  - Validation PSNR (dB)  <- higher is better
+  - Validation SSIM       <- closer to 1.0 is better
+
+
+================================================================
+  5. INFERENCE (run on your own images after training)
+================================================================
+
+-- Basic inference --
+uv run gf-infer `
+  --checkpoint checkpoints/best_model.pth `
+  --lq_rgb     my_color_photo.jpg `
+  --hq_gray    my_sharp_bw_photo.jpg `
+  --output     result.png
+
+-- Inference with custom tile size (reduce if you get OOM error) --
+uv run gf-infer `
+  --checkpoint checkpoints/best_model.pth `
+  --lq_rgb     my_color_photo.jpg `
+  --hq_gray    my_sharp_bw_photo.jpg `
+  --output     result.png `
+  --tile_size  256
+
+-- Full image inference (no tiling, needs enough VRAM) --
+uv run gf-infer `
+  --checkpoint checkpoints/best_model.pth `
+  --lq_rgb     my_color_photo.jpg `
+  --hq_gray    my_sharp_bw_photo.jpg `
+  --output     result.png `
+  --no_tile
+
+Two files are saved:
+  result.png          <- the final HQ color image
+  result_compare.png  <- side-by-side: LQ | Gray | Result
+
+
+================================================================
+  6. CODE QUALITY (optional)
+================================================================
+
+-- Lint check --
+uv run ruff check guided_fusion/
+
+-- Lint and auto-fix --
+uv run ruff check guided_fusion/ --fix
+
+-- Type check --
+uv run mypy guided_fusion/
+
+-- Run tests --
+uv run pytest tests/
+
+
+================================================================
+  7. TROUBLESHOOTING
+================================================================
+
+-- GPU shows False --
+  1. Make sure CUDA 12.1 is installed
+  2. Run:  uv pip install "numpy<2"
+  3. Verify:  uv run python -c "import torch; print(torch.cuda.is_available())"
+
+-- Out of memory during training --
+  Lower batch_size:   --batch_size 8  (or 4)
+  Lower model size:   --base_ch 32
+
+-- Out of memory during inference --
+  Lower tile size:    --tile_size 256
+
+-- uv sync reverts torch to CPU version --
+  Check pyproject.toml has [tool.uv.sources] section with CUDA wheel URLs
+
+-- Demo image download fails --
+  No internet access to Unsplash — the demo will use a synthetic image instead
+  This is fine, just means the demo images won't be real photos
+
+-- Training is slow --
+  Make sure --amp flag is set (mixed precision, ~2x faster on RTX 40 series)
+  Make sure torch.cuda.is_available() returns True before training
+
+
+================================================================
+  8. FILE STRUCTURE
+================================================================
+
+guided_fusion/
+  guided_fusion/
+    __init__.py     version info
+    model.py        GuidedFusionNet architecture
+    dataset.py      pair synthesis from HQ images
+    losses.py       Charbonnier + Gradient + SSIM loss
+    metrics.py      PSNR and SSIM computation
+    train.py        full training loop
+    infer.py        inference with tiling
+    demo.py         quick demo (no dataset needed)
+    download.py     dataset downloader
+  data/             datasets (downloaded here)
+  checkpoints/      saved models (created during training)
+  demo_output/      demo results (created by gf-demo)
+  pyproject.toml    project config and dependencies
+  requirements.txt  pip-style dependency list
+  .gitignore        files excluded from git
+  COMMANDS.txt      this file
+
+
+================================================================
+  9. EXPECTED RESULTS
+================================================================
+
+After 200 epochs on DIV2K with base_ch=64:
+  PSNR:  ~31-33 dB   (higher is better, >30 is good)
+  SSIM:  ~0.90-0.95  (closer to 1.0 is better)
+
+Training time on RTX 4070 Ti Super:
+  DIV2K only:       ~3-4 hours for 200 epochs
+  DIV2K + Flickr2K: ~10-12 hours for 200 epochs
+
+================================================================

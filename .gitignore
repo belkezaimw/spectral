@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────
+# Guided Fusion — .gitignore
+# ─────────────────────────────────────────────
+
+# Virtual environment (uv)
+.venv/
+
+# uv cache
+uv_cache/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+
+# Dataset (too large for git)
+data/
+*.zip
+*.tar
+*.tar.gz
+
+# Checkpoints (too large for git)
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+
+# TensorBoard logs
+runs/
+logs/
+
+# Demo output
+demo_output/
+
+# Inference results
+result.png
+*_compare.png
+*_compare.jpg
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+
+# MyPy cache
+.mypy_cache/
+
+# Ruff cache
+.ruff_cache/
+
+# Pytest cache
+.pytest_cache/
